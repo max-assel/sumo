@@ -67,6 +67,7 @@
       <joint name="floating_base_joint" type="free"/>
       <geom class="visual" material="black" mesh="pelvis"/>
       <geom class="visual" mesh="pelvis_contour_link"/>
+      <camera name="head_camera" pos="0.1 0 0.50" euler="0 -45 -90"/>
       <geom name="pelvis_collision" class="collision" size="0.07" pos="0 0 -0.08" type="sphere" condim="1"/>
       <site name="imu_in_pelvis" pos="0.04525 0 -0.08339" size="0.01"/>
       <site name="site_pelvis" pos="0 0 0" size="0.01"/>

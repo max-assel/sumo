@@ -48,6 +48,7 @@ class RunMPCConfig:
     record_rollouts: bool = True
     record_rollout_controls: bool = False
     record_rollout_sensors: bool = False
+    record_depth_images: bool = True
 
 
 # ---------------------------------------------------------------------------
@@ -90,6 +91,8 @@ def _make_condition_checker(method):
 
 
 def run_single_episode(config, task, controller, sim, viser_model=None, episode_idx=0):
+    print(f"\nRunning Episode {episode_idx + 1}/{config.num_episodes}...")
+
     """Run one episode, return recorded data."""
     sim_dt = task.sim_model.opt.timestep
     plan_dt = 1.0 / controller.controller_cfg.control_freq
@@ -140,12 +143,16 @@ def run_single_episode(config, task, controller, sim, viser_model=None, episode_
         data["rollout_controls"] = []
     if should_record("rollout_sensors"):
         data["rollout_sensors"] = []
+    if (should_record("depth_images")):
+        data["depth_images"] = []
 
     current_action = None
     curr_time = 0.0
 
     for step in tqdm(range(num_steps), desc=f"Episode {episode_idx + 1}/{config.num_episodes}", leave=False):
         curr_time = step * sim_dt
+
+        print("     Current time: {:.2f}s".format(curr_time), end="")
 
         # Plan
         if step % steps_per_plan == 0:
@@ -194,6 +201,11 @@ def run_single_episode(config, task, controller, sim, viser_model=None, episode_
 
         # Record trajectory
         if step % steps_per_record == 0:
+
+            # Render depth image
+            if should_record("depth_images"):
+                task.render_depth_images()
+
             data["time_traj"].append(curr_time)
             data["qpos_traj"].append(np.array(task.data.qpos))
             if should_record("qvel"):
@@ -211,11 +223,14 @@ def run_single_episode(config, task, controller, sim, viser_model=None, episode_
                 data["mocap_quat_traj"].append(np.array(task.data.mocap_quat))
             if should_record("traces") and controller.traces is not None:
                 data["traces_traj"].append(np.array(controller.traces))
+            if should_record("depth_images"):
+                data["depth_images"].append(np.array(task.depth_image))
 
     data["length"] = curr_time
     for key, val in data.items():
         if isinstance(val, list):
             data[key] = np.asarray(val) if val else np.empty((0,))
+
     return data
 
 

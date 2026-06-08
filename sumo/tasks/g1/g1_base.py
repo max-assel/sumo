@@ -10,6 +10,12 @@ from judo.tasks.base import Task, TaskConfig
 from sumo import MODEL_PATH
 from sumo.utils.indexing import get_pos_indices
 
+from PIL import Image
+
+# Enable EGL as rendering backend (necessary for headless rendering)
+import os
+os.environ["MUJOCO_GL"] = "egl"
+
 XML_PATH = str(MODEL_PATH / "xml/g1/g1.xml")
 
 # Default joint positions for G1 (29 joints total)
@@ -112,6 +118,21 @@ class G1Base(Task[ConfigT], Generic[ConfigT]):
 
         # Set default command based on arm usage
         self._set_default_command()
+
+        self.depth_image = np.ndarray([])  # placeholder for depth image
+
+        # Instantiate a renderer for the current model
+        self.renderer = mujoco.Renderer(self.model, height=480, width=640)
+
+        # Grab the camera from the model (assuming a camera named 'head_camera' exists)
+        camera_name = 'head_camera'
+        camera_id = self.model.camera(camera_name).id
+        self.attached_cam = mujoco.MjvCamera()
+        self.attached_cam.type = mujoco.mjtCamera.mjCAMERA_FIXED
+        self.attached_cam.fixedcamid = camera_id
+
+        # Enable depth rendering (instead of RGB)
+        self.renderer.enable_depth_rendering()
 
     def _set_default_command(self) -> None:
         """Set default command based on arm and wrist usage.
@@ -344,3 +365,25 @@ class G1Base(Task[ConfigT], Generic[ConfigT]):
         self.data.qpos = self.reset_pose
         self.data.qvel = np.zeros_like(self.data.qvel)
         mujoco.mj_forward(self.model, self.data)
+
+    def render_depth_images(self) -> None:
+        """Render depth images for the current state."""
+        # This method can be called during rollout to capture depth images at each step
+        # Implementation depends on how the C++ backend handles rendering and data storage
+        
+        # print("Rendering depth images... (this is a placeholder method, implement as needed)")
+
+        self.renderer.update_scene(self.data, self.attached_cam)
+
+        depth_array = self.renderer.render()
+
+        # Scale depth values to [0, 1]
+        depth_scaled = (depth_array - np.min(depth_array)) / (np.max(depth_array) - np.min(depth_array))
+        # Convert to 8-bit grayscale
+        depth_pixels = (depth_scaled * 255).astype(np.uint8)
+
+        # 7. Convert and save depth image
+        img = Image.fromarray(depth_pixels)
+        img.save("/home/masselmeier3/headless_render_depth.png")         
+
+        self.depth_image = depth_array  # Store raw depth values for use in reward or observation       

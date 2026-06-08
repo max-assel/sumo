@@ -88,6 +88,8 @@ class G1Door(G1Base):
         self.left_palm_idx = get_sensor_indices(self.model, "trace_left_palm")
         self.right_palm_idx = get_sensor_indices(self.model, "trace_right_palm")
 
+        self.depth_image = np.ndarray([])  # placeholder for depth image
+
     @property
     def nu(self) -> int:
         """Number of controls for this task."""
@@ -222,4 +224,4 @@ class G1Door(G1Base):
     ) -> bool:
         """Check if G1 has fallen."""
         body_height = data.qpos[..., self.body_pose_idx[2]]
-        return bool(body_height <= config.fall_threshold)
+        return bool(body_height <= config.fall_threshold) 
